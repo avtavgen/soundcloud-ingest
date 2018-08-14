@@ -1,0 +1,7 @@
+project_token: 37434ea98aa65b458b90cb68
+name: soundcloud-social-ingest
+jobs: 
+  - job_id: 143bc2cd-5997-40e3-be03-eec929bfb12d
+    language: python
+    name: Main
+    entrypoint: "main.py"
