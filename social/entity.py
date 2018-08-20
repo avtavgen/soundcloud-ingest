@@ -49,7 +49,7 @@ class SocialStatements:
         "columns": {
             "uri": "text",
             "date": "date",
-            "score": "float",
+            "score": "decimal",
             "url": "text",
             "artwork_url": "text",
             "comment_count": "int",
