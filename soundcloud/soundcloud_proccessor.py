@@ -66,7 +66,7 @@ class SoundcloudProcessor(object):
                         track_data, user_data = self._get_info(track)
                         self.tracks.append(track_data)
                         self.users.append(user_data)
-                        sleep(randint(2, 4))
+                        sleep(randint(4, 8))
                     except Exception as e:
                         self.log.info("Failed to fetch data: {}".format(e))
                         continue
