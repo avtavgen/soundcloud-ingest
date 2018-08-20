@@ -3,7 +3,6 @@ import sys
 from time import sleep
 from random import randint
 from datetime import datetime
-from bs4 import BeautifulSoup
 
 
 CATEGORIES = ["alternativerock", "ambient", "classical", "country", "dancehall", "disco", "danceedm", "deephouse",
@@ -55,7 +54,6 @@ class SoundcloudProcessor(object):
         for category in CATEGORIES:
             self.users = []
             self.tracks = []
-            self.relations = []
             for kind in KIND:
                 response = self._make_request("{}charts?kind={}&genre=soundcloud%3Agenres%3A{}&high_tier_only=false"
                                               "&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&limit=200&offset=0"
@@ -65,15 +63,14 @@ class SoundcloudProcessor(object):
                 self.log.info("Collecting {} tracks form {} category".format(len(track_list), category))
                 for track in track_list:
                     try:
-                        track_data, user_data, user_relations = self._get_info(track)
+                        track_data, user_data = self._get_info(track)
                         self.tracks.append(track_data)
                         self.users.append(user_data)
-                        self.relations.extend(user_relations)
                         sleep(randint(2, 4))
                     except Exception as e:
                         self.log.info("Failed to fetch data: {}".format(e))
                         continue
-            self.entity.save(tracks=self.tracks, users=self.users, relations=self.relations)
+            self.entity.save(tracks=self.tracks, users=self.users)
 
     def _get_info(self, track):
         track_data = dict()
@@ -97,19 +94,18 @@ class SoundcloudProcessor(object):
         track_data["title"] = track["track"]["title"]
         track_data["user_id"] = track["track"]["user_id"]
 
-        user_data, user_relations = self._get_user_data(track["track"]["user"])
+        user_data = self._get_user_data(track["track"]["user"])
 
         self.log.info(track_data)
         self.log.info(user_data)
-        self.log.info(user_relations)
-        return track_data, user_data, user_relations
+        return track_data, user_data
 
     def _get_user_data(self, user):
         user_data = dict()
-        user_relations = []
         uri = "soundcloud␟user␟{}".format(user["id"])
         url = user["permalink_url"]
         user_data["uri"] = uri
+        user_data["ingested"] = False
         user_data["date"] = datetime.now().strftime("%Y-%m-%d")
         user_data["avatar_url"] = user["avatar_url"]
         user_data["first_name"] = user["first_name"]
@@ -163,55 +159,7 @@ class SoundcloudProcessor(object):
         user_data["following"] = following_count
         user_data["track_count"] = track_count
 
-        return user_data, user_relations
-
-    def _get_user_relations(self, user_id):
-        relations = list()
-        facebook_relation = dict()
-        twitch_relation = dict()
-        twitter_relation = dict()
-        youtube_relation = dict()
-
-        #
-        #
-        # if facebook_url:
-        #     screen_name = self._get_url_screen_name(facebook_url)
-        #     if not screen_name.isdigit():
-        #         facebook_relation["src"] = src_uri
-        #         facebook_relation["relation"] = 4
-        #         facebook_relation["ingested"] = False
-        #         facebook_relation["dst"] = "facebook␟page␟{}".format(screen_name)
-        #         relations.append(facebook_relation)
-        #
-        # if twitch_url:
-        #     twitch_relation["src"] = src_uri
-        #     twitch_relation["relation"] = 100
-        #     twitch_relation["ingested"] = False
-        #     twitch_relation["dst"] = "twitch␟screen_name␟{}".format(self._get_url_screen_name(twitch_url))
-        #     relations.append(twitch_relation)
-        #
-        # if twitter_url:
-        #     name = self._get_url_screen_name(twitter_url)
-        #     uri = "twitter␟{}␟{}".format("user" if name.isdigit() else "screen_name", name)
-        #     twitter_relation["src"] = src_uri
-        #     twitter_relation["relation"] = 100
-        #     twitter_relation["ingested"] = False
-        #     twitter_relation["dst"] = uri
-        #     relations.append(twitter_relation)
-        #
-        # if youtube_url:
-        #     name = self._get_url_screen_name(youtube_url)
-        #     if "channel" in youtube_url and self._check_youtube_url(youtube_url):
-        #         uri = "youtube␟{}␟{}".format("user", name)
-        #     else:
-        #         uri = "youtube␟{}␟{}".format("channel" if "channel" in youtube_url else "user", name)
-        #     youtube_relation["src"] = src_uri
-        #     youtube_relation["relation"] = 100
-        #     youtube_relation["ingested"] = False
-        #     youtube_relation["dst"] = uri
-        #     relations.append(youtube_relation)
-
-        return relations
+        return user_data
 
     def fetch(self):
         self.log.info('Making request to Soundcloud for daily creators export')

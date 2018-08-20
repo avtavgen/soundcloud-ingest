@@ -14,7 +14,7 @@ class SocialStatements:
         self.users = []
         self.engine = engine
         self.logger = logger
-        self.relations = []
+        self.tracks = []
 
     user_schema = {
         "table_name": "user",
@@ -24,53 +24,64 @@ class SocialStatements:
         },
         "columns": {
             "uri": "text",
-            "screen_name": "text",
-            "full_name": "text",
-            "is_private": "boolean",
-            "is_verified": "boolean",
-            "profile": "text",
-            "following": "int",
-            "followers": "bigint",
-            "categories": "set<text>",
-            "url": "text",
-            "lang": "text",
-            "location": "text",
-            "post_count": "int",
-            "platform_income": "bigint",
             "date": "date",
-            "last_fetch_id": "text",
+            "avatar_url": "date",
+            "first_name": "text",
+            "last_name": "text",
+            "city": "text",
+            "country_code": "text",
+            "screenname": "text",
+            "url": "text",
+            "username": "text",
+            "id": "int",
+            "following": "int",
+            "followers": "int",
+            "track_count": "int",
             "ingested": "boolean"
         }
     }
 
-    relation_schema = {
-        "table_name": "relation",
+    track_schema = {
+        "table_name": "track",
         "options": {
-            "primary_key": ["src", "relation", "dst"]
+            "primary_key": ["uri", "date"]
         },
         "columns": {
-            "src": "text",
-            "relation": "tinyint",
-            "dst": "text",
-            "ingested": "boolean"
+            "uri": "text",
+            "date": "date",
+            "score": "float",
+            "url": "text",
+            "artwork_url": "text",
+            "comment_count": "int",
+            "duration": "int",
+            "description": "text",
+            "genre": "text",
+            "label_name": "text",
+            "likes_count": "int",
+            "playback_count": "int",
+            "created_at": "text",
+            "reposts_count": "int",
+            "tag_list": "set<text>",
+            "title": "text",
+            "user_id": "int"
         }
     }
 
-    def save(self, batch_size=50, users=None, relations=None):
+    def save(self, batch_size=50, users=None, tracks=None):
         """Write these social statements to the data engine in the appropriate manner."""
         self.users = users
-        self.relations = relations
+        self.tracks = tracks
         if self.users:
             self.logger.info('about to send {} user statements to the data engine'.format(len(self.users)))
             self._write_batches(self.engine, self.logger, self.user_schema, self.users, batch_size)
         else:
             self.logger.debug('skipping user ingest, no records in these social statements')
 
-        if self.relations:
-            self.logger.info('about to send {} relation statements to the data engine'.format(len(self.relations)))
-            self._write_batches(self.engine, self.logger, self.relation_schema, self.relations, batch_size)
+        if self.tracks:
+            self.logger.info('about to send {} tracks statements to the data engine'.format(len(self.tracks)))
+            self._write_batches(self.engine, self.logger, self.track_schema, self.tracks, batch_size)
         else:
-            self.logger.info('skipping user ingest, no records in these social statements')
+            self.logger.info('skipping track ingest, no records in these social statements')
 
     @staticmethod
     def _write_batches(engine, logger, schema, data, batch_size=40):
