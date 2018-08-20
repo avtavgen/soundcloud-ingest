@@ -67,7 +67,7 @@ class SocialStatements:
         }
     }
 
-    def save(self, batch_size=50, users=None, tracks=None):
+    def save(self, batch_size=20, users=None, tracks=None):
         """Write these social statements to the data engine in the appropriate manner."""
         self.users = users
         self.tracks = tracks
@@ -84,7 +84,7 @@ class SocialStatements:
             self.logger.info('skipping track ingest, no records in these social statements')
 
     @staticmethod
-    def _write_batches(engine, logger, schema, data, batch_size=40):
+    def _write_batches(engine, logger, schema, data, batch_size=20):
         for rows in batches(data, batch_size):
             logger.info('Rows: {}'.format(rows))
             res = engine.save(schema, list(rows)).result()
