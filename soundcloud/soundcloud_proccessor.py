@@ -10,7 +10,7 @@ CATEGORIES = ["alternativerock", "ambient", "classical", "country", "dancehall",
               "reggaeton", "rock", "soundtrack", "techno", "trance", "trap", "triphop", "world", "rbsoul", "jazzblues",
               "hiphoprap", "folksingersongwriter", "all-music"]
 
-KIND = ["trending", "top"]
+KIND = ["trending"]
 
 
 class SoundcloudProcessor(object):
@@ -34,7 +34,7 @@ class SoundcloudProcessor(object):
                 return response.json()
             except requests.exceptions.HTTPError as e:
                 self.log.info("{}".format(e))
-                sleep(30)
+                sleep(60)
                 retries += 1
                 if retries <= self.retry:
                     self.log.info("Trying again!")
@@ -60,13 +60,13 @@ class SoundcloudProcessor(object):
                                               "&linked_partitioning=1&app_version=1533891405"
                                               "&app_locale=en".format(self.base_url, kind, category))
                 track_list = response["collection"]
-                self.log.info("Collecting {} tracks form {} category".format(len(track_list), category))
+                self.log.info("Collecting {} tracks form {} category, {} kind.".format(len(track_list), category, kind))
                 for track in track_list:
                     try:
                         track_data, user_data = self._get_info(track)
                         self.tracks.append(track_data)
                         self.users.append(user_data)
-                        sleep(randint(4, 8))
+                        sleep(randint(6, 8))
                     except Exception as e:
                         self.log.info("Failed to fetch data: {}".format(e))
                         continue
@@ -123,7 +123,7 @@ class SoundcloudProcessor(object):
         while True:
             if next:
                 next += auth
-            response = self._make_request("{}users/{}/followers?offset=1534412026604&limit=100000"
+            response = self._make_request("{}users/{}/followers?offset=1534412026604&limit=1000000"
                                           "&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&app_version=1533891405"
                                           "&app_locale=en".format(self.base_url, user["id"]), next)
             followers_count += len(response["collection"])
