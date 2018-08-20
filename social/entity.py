@@ -17,7 +17,7 @@ class SocialStatements:
         self.tracks = []
 
     user_schema = {
-        "table_name": "user",
+        "table_name": "user_temp",
         "options": {
             "primary_key": ["uri", "date"],
             "order_by": ["date desc"]
@@ -25,7 +25,7 @@ class SocialStatements:
         "columns": {
             "uri": "text",
             "date": "date",
-            "avatar_url": "date",
+            "avatar_url": "text",
             "first_name": "text",
             "last_name": "text",
             "city": "text",
@@ -42,7 +42,7 @@ class SocialStatements:
     }
 
     track_schema = {
-        "table_name": "track",
+        "table_name": "track_temp",
         "options": {
             "primary_key": ["uri", "date"]
         },

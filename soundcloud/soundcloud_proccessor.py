@@ -10,7 +10,7 @@ CATEGORIES = ["alternativerock", "ambient", "classical", "country", "dancehall",
               "reggaeton", "rock", "soundtrack", "techno", "trance", "trap", "triphop", "world", "rbsoul", "jazzblues",
               "hiphoprap", "folksingersongwriter", "all-music"]
 
-KIND = ["trending"]
+KIND = ["trending"] #, "top"
 
 
 class SoundcloudProcessor(object):
