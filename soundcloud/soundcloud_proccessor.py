@@ -148,7 +148,7 @@ class SoundcloudProcessor(object):
             if next:
                 next += auth
             response = self._make_request("{}users/{}/tracks?representation=&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0"
-                                          "&limit=1000&offset=0&linked_partitioning=1&app_version=1533891405"
+                                          "&limit=100&offset=0&linked_partitioning=1&app_version=1533891405"
                                           "&app_locale=en".format(self.base_url, user["id"]), next)
             track_count += len(response["collection"])
             next = response["next_href"]
