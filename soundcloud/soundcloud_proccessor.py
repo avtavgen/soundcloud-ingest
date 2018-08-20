@@ -66,7 +66,7 @@ class SoundcloudProcessor(object):
                         track_data, user_data = self._get_info(track)
                         self.tracks.append(track_data)
                         self.users.append(user_data)
-                        sleep(randint(6, 8))
+                        # sleep(randint(6, 8))
                     except Exception as e:
                         self.log.info("Failed to fetch data: {}".format(e))
                         continue
@@ -123,7 +123,7 @@ class SoundcloudProcessor(object):
         while True:
             if next:
                 next += auth
-            response = self._make_request("{}users/{}/followers?offset=1534412026604&limit=1000000"
+            response = self._make_request("{}users/{}/followers?offset=1534412026604&limit=500"
                                           "&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&app_version=1533891405"
                                           "&app_locale=en".format(self.base_url, user["id"]), next)
             followers_count += len(response["collection"])
