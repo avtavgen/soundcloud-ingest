@@ -1,5 +1,6 @@
 import requests
 import sys
+import re
 from time import sleep
 from random import randint
 from datetime import datetime
@@ -11,6 +12,12 @@ CATEGORIES = ["alternativerock", "ambient", "classical", "country", "dancehall",
               "hiphoprap", "folksingersongwriter", "all-music"]
 
 KIND = ["trending"] #, "top"
+
+contact_regex = {
+  "phone": "(\d{3}[-\.\s]??\d{3}[-\.\s]??\d{4}|\(\d{3}\)\s*\d{3}[-\.\s]??\d{4}|\d{3}[-\.\s]??\d{4})",
+  "email": "(\S+@\S+\.\S+)",
+  "website_links": r"""(?i)\b((?:https?:(?:/{1,3}|[a-z0-9%])|[a-z0-9.\-]+[.](?:com|net|org|edu|gov|us|me)/)(?:[^\s()<>{}\[\]]+|\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\))+(?:\([^\s()]*?\([^\s()]+\)[^\s()]*?\)|\([^\s]+?\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’])|(?:(?<!@)[a-z0-9]+(?:[.\-][a-z0-9]+)*[.](?:com|net|org|edu|gov|us|me)\b/?(?!@)))"""
+}
 
 
 class SoundcloudProcessor(object):
@@ -54,6 +61,7 @@ class SoundcloudProcessor(object):
         for category in CATEGORIES:
             self.users = []
             self.tracks = []
+            self.relations = []
             for kind in KIND:
                 response = self._make_request("{}charts?kind={}&genre=soundcloud%3Agenres%3A{}&high_tier_only=false"
                                               "&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&limit=200&offset=0"
@@ -63,14 +71,15 @@ class SoundcloudProcessor(object):
                 self.log.info("Collecting {} tracks form {} category, {} kind.".format(len(track_list), category, kind))
                 for track in track_list:
                     try:
-                        track_data, user_data = self._get_info(track)
+                        track_data, user_data, relations = self._get_info(track)
                         self.tracks.append(track_data)
                         self.users.append(user_data)
-                        # sleep(randint(6, 8))
+                        self.relations.extend(relations)
+                        sleep(randint(2, 4))
                     except Exception as e:
                         self.log.info("Failed to fetch data: {}".format(e))
                         continue
-            self.entity.save(tracks=self.tracks, users=self.users)
+            self.entity.save(tracks=self.tracks, users=self.users, relations=self.relations)
 
     def _get_info(self, track):
         track_data = dict()
@@ -90,76 +99,151 @@ class SoundcloudProcessor(object):
         track_data["playback_count"] = track["track"]["playback_count"]
         track_data["created_at"] = track["track"]["created_at"]
         track_data["reposts_count"] = track["track"]["reposts_count"]
-        track_data["tag_list"] = track["track"]["tag_list"].split(" ")
+        track_data["tag_list"] = track["track"]["tag_list"]
         track_data["title"] = track["track"]["title"]
         track_data["user_id"] = track["track"]["user_id"]
 
-        user_data = self._get_user_data(track["track"]["user"])
+        user_data, relations = self._get_user_data(track["track"]["user_id"])
 
         self.log.info(track_data)
         self.log.info(user_data)
-        return track_data, user_data
+        self.log.info(relations)
+        return track_data, user_data, relations
 
-    def _get_user_data(self, user):
+    def _get_user_data(self, user_id):
         user_data = dict()
-        uri = "soundcloud␟user␟{}".format(user["id"])
+
+        user = self._make_request("{}users/{}?client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0".format(self.base_url, user_id))
+
+        uri = "soundcloud␟user␟{}".format(user_id)
         url = user["permalink_url"]
+        try:
+            website = user["website"]
+        except KeyError:
+            website = None
         user_data["uri"] = uri
-        user_data["ingested"] = False
         user_data["date"] = datetime.now().strftime("%Y-%m-%d")
         user_data["avatar_url"] = user["avatar_url"]
         user_data["first_name"] = user["first_name"]
         user_data["last_name"] = user["last_name"]
         user_data["city"] = user["city"]
-        user_data["country_code"] = user["country_code"]
+        try:
+            user_data["country"] = user["country"]
+        except KeyError:
+            user_data["country"] = None
+        try:
+            user_data["country_code"] = user["country_code"]
+        except KeyError:
+            user_data["country_code"] = None
         user_data["screenname"] = user["permalink"]
         user_data["url"] = url
         user_data["username"] = user["username"]
         user_data["id"] = user["id"]
+        user_data["followers"] = user["followers_count"]
+        user_data["following"] = user["followings_count"]
+        user_data["track_count"] = user["track_count"]
+        user_data["reposts_count"] = user["reposts_count"]
+        user_data["comments_count"] = user["comments_count"]
+        user_data["website"] = website
+        user_data["description"] = user["description"]
 
-        auth = "&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&app_version=1533891405&app_locale=en"
-        next = None
-        followers_count = 0
-        while True:
-            if next:
-                next += auth
-            response = self._make_request("{}users/{}/followers?offset=1534412026604&limit=500"
-                                          "&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&app_version=1533891405"
-                                          "&app_locale=en".format(self.base_url, user["id"]), next)
-            followers_count += len(response["collection"])
-            next = response["next_href"]
-            if not next:
-                break
+        relations, website_urls = self._get_relations(user_id)
 
-        following_count = 0
-        while True:
-            if next:
-                next += auth
-            response = self._make_request("{}users/{}/followings?client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&limit=10000"
-                                          "&offset=0&linked_partitioning=1&app_version=1533891405"
-                                          "&app_locale=en".format(self.base_url, user["id"]), next)
-            following_count += len(response["collection"])
-            next = response["next_href"]
-            if not next:
-                break
+        contact_info = self._scrape_contact_info(user["description"])
 
-        track_count = 0
-        while True:
-            if next:
-                next += auth
-            response = self._make_request("{}users/{}/tracks?representation=&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0"
-                                          "&limit=100&offset=0&linked_partitioning=1&app_version=1533891405"
-                                          "&app_locale=en".format(self.base_url, user["id"]), next)
-            track_count += len(response["collection"])
-            next = response["next_href"]
-            if not next:
-                break
+        total_urls = ""
 
-        user_data["followers"] = followers_count
-        user_data["following"] = following_count
-        user_data["track_count"] = track_count
+        if website:
+            total_urls += "," + website
 
-        return user_data
+        if website_urls:
+            total_urls += ",".join(website_urls)
+
+        if contact_info["website_links"] != "null":
+            total_urls += "," + contact_info["website_links"]
+
+        contact_info["website_links"] = total_urls if total_urls else "null"
+
+        user_data["contact_info"] = contact_info
+
+        return user_data, relations
+
+    def _scrape_contact_info(self, text: str):
+        contact_info = {"email": 'null', "phone": 'null', "website_links": 'null'}
+        if not text:
+            return contact_info
+        # filter out anything above the ascii range (emojis, etc) and replace with spaces
+        basic_text = ''.join([c if ord(c) < 128 else ' ' for c in text])
+        for method in contact_regex:
+            results = re.findall(contact_regex[method], basic_text)
+            if not results:
+                continue
+            else:
+                contact_info[method] = ','.join([res for res in results])
+        return contact_info
+
+    def _get_relations(self, user_id):
+        relations = list()
+        website_urls = list()
+        response = self._make_request("https://api-v2.soundcloud.com/users/soundcloud:users:{}/web-profiles"
+                                  "?client_id=lCenpOwq2Y1o7PEv3qhRyNSEqI7Xfx1H"
+                                  "&app_version=1536151217&app_locale=en".format(user_id))
+
+        for profile in response:
+            relation = dict()
+            if profile["network"] == "personal":
+                website_urls.append(profile["url"])
+
+            if profile["network"] == "facebook":
+                name = self._get_url_screen_name(profile["url"])
+                if not name.isdigit():
+                    relation["src"] = profile["url"]
+                    relation["relation"] = 4
+                    relation["ingested"] = False
+                    relation["dst"] = "facebook␟page␟{}".format(name)
+                    relations.append(relation)
+
+            if profile["network"] == "instagram":
+                name = self._get_url_screen_name(profile["url"])
+                relation["src"] = profile["url"]
+                relation["relation"] = 100
+                relation["ingested"] = False
+                relation["dst"] = "instagram␟user␟{}".format(name)
+                relations.append(relation)
+
+            if profile["network"] == "twitter":
+                name = self._get_url_screen_name(profile["url"])
+                uri = "twitter␟{}␟{}".format("user" if name.isdigit() else "screen_name", name.lower())
+                relation["src"] = profile["url"]
+                relation["relation"] = 100
+                relation["ingested"] = False
+                relation["dst"] = uri
+                relations.append(relation)
+
+            if profile["network"] == "youtube":
+                name = self._get_url_screen_name(profile["url"])
+                uri = "youtube␟{}␟{}".format("channel" if "channel" in profile["url"] else "user", name)
+                relation["src"] = profile["url"]
+                relation["relation"] = 100
+                relation["ingested"] = False
+                relation["dst"] = uri
+                relations.append(relation)
+
+        return relations, website_urls
+
+    def _get_url_screen_name(self, url):
+        url = url.replace("/", " ")
+        url = url.replace("?ref=ts", "")
+        url = url.replace("?ref=hl", "")
+        url = url.replace("?ref=page_internal", "")
+        url = url.replace("featured", "")
+        url = url.replace("?view_as=subscriber", "")
+        url = url.rstrip()
+        return url.split(" ")[-1]
+
+    def _check_youtube_url(self, url):
+        r = requests.get(url, headers=self.headers)
+        return True if r.status_code == 404 else False
 
     def fetch(self):
         self.log.info('Making request to Soundcloud for daily creators export')

@@ -15,9 +15,10 @@ class SocialStatements:
         self.engine = engine
         self.logger = logger
         self.tracks = []
+        self.relations = []
 
     user_schema = {
-        "table_name": "user_temp",
+        "table_name": "user",
         "options": {
             "primary_key": ["uri", "date"],
             "order_by": ["date desc"]
@@ -29,6 +30,7 @@ class SocialStatements:
             "first_name": "text",
             "last_name": "text",
             "city": "text",
+            "country": "text",
             "country_code": "text",
             "screenname": "text",
             "url": "text",
@@ -37,12 +39,16 @@ class SocialStatements:
             "following": "int",
             "followers": "int",
             "track_count": "int",
-            "ingested": "boolean"
+            "reposts_count": "int",
+            "comments_count": "int",
+            "website": "text",
+            "description": "text",
+            "contact_info": "map<text, text>"
         }
     }
 
     track_schema = {
-        "table_name": "track_temp",
+        "table_name": "track",
         "options": {
             "primary_key": ["uri", "date"]
         },
@@ -61,16 +67,30 @@ class SocialStatements:
             "playback_count": "int",
             "created_at": "text",
             "reposts_count": "int",
-            "tag_list": "set<text>",
+            "tag_list": "text",
             "title": "text",
             "user_id": "int"
         }
     }
 
-    def save(self, batch_size=20, users=None, tracks=None):
+    relation_schema = {
+        "table_name": "relation",
+        "options": {
+            "primary_key": ["src", "relation", "dst"]
+        },
+        "columns": {
+            "src": "text",
+            "relation": "tinyint",
+            "dst": "text",
+            "ingested": "boolean"
+        }
+    }
+
+    def save(self, batch_size=20, users=None, tracks=None, relations=None):
         """Write these social statements to the data engine in the appropriate manner."""
         self.users = users
         self.tracks = tracks
+        self.relations = relations
         if self.users:
             self.logger.info('about to send {} user statements to the data engine'.format(len(self.users)))
             self._write_batches(self.engine, self.logger, self.user_schema, self.users, batch_size)
@@ -82,6 +102,12 @@ class SocialStatements:
             self._write_batches(self.engine, self.logger, self.track_schema, self.tracks, batch_size)
         else:
             self.logger.info('skipping track ingest, no records in these social statements')
+
+        if self.relations:
+            self.logger.info('about to send {} relation statements to the data engine'.format(len(self.relations)))
+            self._write_batches(self.engine, self.logger, self.relation_schema, self.relations, batch_size)
+        else:
+            self.logger.info('skipping relation ingest, no records in these social statements')
 
     @staticmethod
     def _write_batches(engine, logger, schema, data, batch_size=20):
