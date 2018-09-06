@@ -63,7 +63,6 @@ class SoundcloudProcessor(object):
         for category in CATEGORIES:
             self.users = []
             self.tracks = []
-            self.relations = []
             for kind in KIND:
                 response = self._make_request("{}charts?kind={}&genre=soundcloud%3Agenres%3A{}&high_tier_only=false"
                                               "&client_id=PmqbpuYsHUQ7ZYrW6qUlPcdpVFETRzc0&limit=200&offset=0"
@@ -73,15 +72,14 @@ class SoundcloudProcessor(object):
                 self.log.info("Collecting {} tracks form {} category, {} kind.".format(len(track_list), category, kind))
                 for track in track_list:
                     try:
-                        track_data, user_data, relations = self._get_info(track)
+                        track_data, user_data = self._get_info(track)
                         self.tracks.append(track_data)
                         self.users.append(user_data)
-                        self.relations.extend(relations)
                         sleep(randint(2, 4))
                     except Exception as e:
                         self.log.info("Failed to fetch data: {}".format(e))
                         continue
-            self.entity.save(tracks=self.tracks, users=self.users, relations=self.relations)
+            self.entity.save(tracks=self.tracks, users=self.users)
 
     def _get_info(self, track):
         track_data = dict()
@@ -105,12 +103,11 @@ class SoundcloudProcessor(object):
         track_data["title"] = track["track"]["title"]
         track_data["user_id"] = track["track"]["user_id"]
 
-        user_data, relations = self._get_user_data(track["track"]["user_id"])
+        user_data = self._get_user_data(track["track"]["user_id"])
 
         self.log.info(track_data)
         self.log.info(user_data)
-        self.log.info(relations)
-        return track_data, user_data, relations
+        return track_data, user_data
 
     def _get_user_data(self, user_id):
         user_data = dict()
@@ -167,8 +164,9 @@ class SoundcloudProcessor(object):
         contact_info["website_links"] = total_urls if total_urls else "null"
 
         user_data["contact_info"] = json.dumps(contact_info)
+        user_data["links"] = relations
 
-        return user_data, relations
+        return user_data
 
     def _scrape_contact_info(self, text: str):
         contact_info = {"email": 'null', "phone": 'null', "website_links": 'null'}
@@ -192,44 +190,29 @@ class SoundcloudProcessor(object):
                                   "&app_version=1536151217&app_locale=en".format(user_id))
 
         for profile in response:
-            relation = dict()
             if profile["network"] == "personal":
                 website_urls.append(profile["url"])
 
             if profile["network"] == "facebook":
                 name = self._get_url_screen_name(profile["url"])
                 if not name.isdigit():
-                    relation["src"] = profile["url"]
-                    relation["relation"] = 4
-                    relation["ingested"] = False
-                    relation["dst"] = "facebook␟page␟{}".format(name)
-                    relations.append(relation)
+                    uri = "facebook␟page␟{}".format(name)
+                    relations.append(uri)
 
             if profile["network"] == "instagram":
                 name = self._get_url_screen_name(profile["url"])
-                relation["src"] = profile["url"]
-                relation["relation"] = 100
-                relation["ingested"] = False
-                relation["dst"] = "instagram␟user␟{}".format(name)
-                relations.append(relation)
+                uri = "instagram␟user␟{}".format(name)
+                relations.append(uri)
 
             if profile["network"] == "twitter":
                 name = self._get_url_screen_name(profile["url"])
                 uri = "twitter␟{}␟{}".format("user" if name.isdigit() else "screen_name", name.lower())
-                relation["src"] = profile["url"]
-                relation["relation"] = 100
-                relation["ingested"] = False
-                relation["dst"] = uri
-                relations.append(relation)
+                relations.append(uri)
 
             if profile["network"] == "youtube":
                 name = self._get_url_screen_name(profile["url"])
                 uri = "youtube␟{}␟{}".format("channel" if "channel" in profile["url"] else "user", name)
-                relation["src"] = profile["url"]
-                relation["relation"] = 100
-                relation["ingested"] = False
-                relation["dst"] = uri
-                relations.append(relation)
+                relations.append(uri)
 
         return relations, website_urls
 
