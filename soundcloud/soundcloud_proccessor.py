@@ -1,6 +1,8 @@
+import json
 import requests
 import sys
 import re
+
 from time import sleep
 from random import randint
 from datetime import datetime
@@ -164,7 +166,7 @@ class SoundcloudProcessor(object):
 
         contact_info["website_links"] = total_urls if total_urls else "null"
 
-        user_data["contact_info"] = None
+        user_data["contact_info"] = json.dumps(contact_info)
 
         return user_data, relations
 
