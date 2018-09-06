@@ -164,7 +164,7 @@ class SoundcloudProcessor(object):
 
         contact_info["website_links"] = total_urls if total_urls else "null"
 
-        user_data["contact_info"] = contact_info
+        user_data["contact_info"] = None
 
         return user_data, relations
 
