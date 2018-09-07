@@ -13,7 +13,7 @@ CATEGORIES = ["alternativerock", "ambient", "classical", "country", "dancehall",
               "reggaeton", "rock", "soundtrack", "techno", "trance", "trap", "triphop", "world", "rbsoul", "jazzblues",
               "hiphoprap", "folksingersongwriter", "all-music"]
 
-KIND = ["trending"] #, "top"
+KIND = ["trending", "top"]
 
 contact_regex = {
   "phone": "(\d{3}[-\.\s]??\d{3}[-\.\s]??\d{4}|\(\d{3}\)\s*\d{3}[-\.\s]??\d{4}|\d{3}[-\.\s]??\d{4})",
